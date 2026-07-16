@@ -1,0 +1,145 @@
+import { useMemo, useState } from 'react'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from 'recharts'
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useStore } from '@/lib/store'
+import { SHIFT_LABELS, currentShiftOfDay, dateKeyOf, todayKey } from '@/types'
+import type { ShiftStatus } from '@/types'
+
+const chartConfig = {
+  tickets: { label: 'Tickets asignados', color: '#1F2937' },
+} satisfies ChartConfig
+
+type ShiftFilter = 'all' | 'morning' | 'afternoon'
+
+export function MiniDashboard() {
+  const { workingToday, shiftOf, tickets } = useStore()
+  const [filter, setFilter] = useState<ShiftFilter>('all')
+  const today = todayKey()
+  const currentShift = currentShiftOfDay()
+
+  const data = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const tk of tickets) {
+      if (dateKeyOf(tk.createdAt) === today) {
+        counts.set(tk.techId, (counts.get(tk.techId) ?? 0) + 1)
+      }
+    }
+    return workingToday
+      .filter((t) => filter === 'all' || shiftOf(t.id) === filter)
+      .map((t) => ({
+        id: t.id,
+        name: t.name.split(' ').slice(0, 2).join(' '),
+        fullName: t.name,
+        tickets: counts.get(t.id) ?? 0,
+        shift: shiftOf(t.id) as ShiftStatus,
+      }))
+      .sort((a, b) => b.tickets - a.tickets)
+  }, [tickets, workingToday, filter, shiftOf, today])
+
+  const maxLoad = Math.max(0, ...data.map((d) => d.tickets))
+  const totalToday = data.reduce((acc, d) => acc + d.tickets, 0)
+
+  return (
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader className="border-b border-gray-100 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-base font-semibold">Carga del turno actual</CardTitle>
+            <CardDescription className="mt-0.5 text-xs">
+              Tickets asignados hoy por técnico · evita sobrecargar a una persona
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-gray-200 text-xs font-medium text-gray-500">
+              Turno detectado: {currentShift === 'morning' ? 'Mañana' : 'Tarde'}
+            </Badge>
+            <Select value={filter} onValueChange={(v) => setFilter(v as ShiftFilter)}>
+              <SelectTrigger className="h-8 w-[130px] border-gray-200 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los turnos</SelectItem>
+                <SelectItem value="morning">Turno Mañana</SelectItem>
+                <SelectItem value="afternoon">Turno Tarde</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-5">
+        {data.length === 0 ? (
+          <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-gray-200 text-xs text-gray-400">
+            No hay técnicos en este turno para mostrar.
+          </div>
+        ) : (
+          <>
+            <ChartContainer config={chartConfig} className="h-[220px] w-full">
+              <BarChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
+                <CartesianGrid vertical={false} stroke="#EEF0F2" />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#6B7280' }}
+                  interval={0}
+                />
+                <YAxis
+                  allowDecimals={false}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                />
+                <ChartTooltip
+                  cursor={{ fill: 'rgba(17,24,39,0.04)' }}
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value, _name, item) => (
+                        <div className="flex flex-col gap-0.5">
+                          <span className="font-medium">{item.payload.fullName}</span>
+                          <span>
+                            {value} ticket{Number(value) === 1 ? '' : 's'} · {SHIFT_LABELS[item.payload.shift as ShiftStatus]}
+                          </span>
+                        </div>
+                      )}
+                    />
+                  }
+                />
+                <Bar dataKey="tickets" radius={[4, 4, 0, 0]} maxBarSize={52}>
+                  {data.map((d) => (
+                    <Cell
+                      key={d.id}
+                      fill={d.tickets === maxLoad && maxLoad > 0 ? '#D97706' : '#1F2937'}
+                    />
+                  ))}
+                  <LabelList dataKey="tickets" position="top" style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                </Bar>
+              </BarChart>
+            </ChartContainer>
+
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500">
+              <span>
+                Total despachado hoy: <strong className="font-semibold text-gray-900">{totalToday}</strong> ticket
+                {totalToday === 1 ? '' : 's'}
+              </span>
+              {maxLoad > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <span className="inline-block h-2.5 w-2.5 rounded-[3px] bg-amber-600" />
+                  Mayor carga del turno — revisa antes de asignar más
+                </span>
+              )}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
