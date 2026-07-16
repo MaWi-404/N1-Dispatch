@@ -85,7 +85,7 @@ export function AppShell({ role, onRoleChange, onLogout, section, onSectionChang
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-7xl">
+      <div className="flex w-full">
         {/* Sidebar solo para administrador */}
         {role === 'admin' && (
           <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-60 shrink-0 border-r border-gray-200 bg-white md:block">
@@ -117,29 +117,31 @@ export function AppShell({ role, onRoleChange, onLogout, section, onSectionChang
         )}
 
         {/* Navegación horizontal del admin en pantallas pequeñas */}
-        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6">
-          {role === 'admin' && (
-            <div className="mb-5 flex gap-1 overflow-x-auto rounded-md border border-gray-200 bg-white p-1 md:hidden">
-              {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
-                const selected = section === key
-                return (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => onSectionChange(key)}
-                    className={cn(
-                      'flex shrink-0 items-center gap-1.5 rounded-[5px] px-3 py-1.5 text-xs font-medium transition-colors',
-                      selected ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-800',
-                    )}
-                  >
-                    <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
-                    {label}
-                  </button>
-                )
-              })}
-            </div>
-          )}
-          {children}
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-10">
+          <div className="mx-auto w-full max-w-6xl">
+            {role === 'admin' && (
+              <div className="mb-5 flex gap-1 overflow-x-auto rounded-md border border-gray-200 bg-white p-1 md:hidden">
+                {NAV_ITEMS.map(({ key, label, icon: Icon }) => {
+                  const selected = section === key
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => onSectionChange(key)}
+                      className={cn(
+                        'flex shrink-0 items-center gap-1.5 rounded-[5px] px-3 py-1.5 text-xs font-medium transition-colors',
+                        selected ? 'bg-gray-100 text-gray-900' : 'text-gray-500 hover:text-gray-800',
+                      )}
+                    >
+                      <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      {label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {children}
+          </div>
         </main>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useReducer } from 'react'
 import type { ShiftAssignment, ShiftStatus, Technician, Ticket, TicketType } from '@/types'
-import { todayKey } from '@/types'
+import { SHIFT_CATALOG, todayKey } from '@/types'
 
 interface State {
   technicians: Technician[]
@@ -11,11 +11,15 @@ interface State {
 type Action =
   | { type: 'ADD_TECH'; name: string }
   | { type: 'TOGGLE_TECH'; id: string }
+  | { type: 'DELETE_TECH'; id: string }
   | { type: 'SET_SHIFT'; techId: string; date: string; status: ShiftStatus }
   | { type: 'ADD_TICKET'; number: string; ticketType: TicketType; techId: string }
   | { type: 'RESET_DEMO' }
+  | { type: 'CLEAR_ALL' }
 
-const STORAGE_KEY = 'ticket-dispatch-v1'
+// v2: se cambió el modelo de turnos a los códigos reales (A-I, P, L).
+// Se sube de versión para no reutilizar datos viejos con el esquema anterior.
+const STORAGE_KEY = 'ticket-dispatch-v2'
 
 const uid = (): string =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -56,7 +60,7 @@ function seedState(): State {
 
   // Turnos de hoy precargados
   const today = todayKey()
-  const todayStatuses: ShiftStatus[] = ['morning', 'morning', 'morning', 'afternoon', 'afternoon', 'off']
+  const todayStatuses: ShiftStatus[] = ['A', 'B', 'C', 'D', 'E', 'L']
   const shifts: ShiftAssignment[] = activeTechs.map((t, i) => ({
     techId: t.id,
     date: today,
@@ -122,6 +126,13 @@ function reducer(state: State, action: Action): State {
           t.id === action.id ? { ...t, active: !t.active } : t,
         ),
       }
+    case 'DELETE_TECH':
+      return {
+        ...state,
+        technicians: state.technicians.filter((t) => t.id !== action.id),
+        shifts: state.shifts.filter((s) => s.techId !== action.id),
+        // El historial de tickets se conserva para no perder datos de reportes.
+      }
     case 'SET_SHIFT': {
       const exists = state.shifts.some((s) => s.techId === action.techId && s.date === action.date)
       const shifts = exists
@@ -143,6 +154,8 @@ function reducer(state: State, action: Action): State {
     }
     case 'RESET_DEMO':
       return seedState()
+    case 'CLEAR_ALL':
+      return { technicians: [], shifts: [], tickets: [] }
     default:
       return state
   }
@@ -151,9 +164,11 @@ function reducer(state: State, action: Action): State {
 interface StoreValue extends State {
   addTechnician: (name: string) => void
   toggleTechnician: (id: string) => void
+  deleteTechnician: (id: string) => void
   setShift: (techId: string, date: string, status: ShiftStatus) => void
   addTicket: (number: string, ticketType: TicketType, techId: string) => void
   resetDemo: () => void
+  clearAll: () => void
   /** Técnicos activos que hoy tienen turno laboral (mañana o tarde). */
   workingToday: Technician[]
   shiftOf: (techId: string, date?: string) => ShiftStatus
@@ -179,15 +194,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const workingToday = state.technicians.filter((t) => {
       if (!t.active) return false
       const s = shiftOf(t.id)
-      return s === 'morning' || s === 'afternoon'
+      return SHIFT_CATALOG[s].isWorking
     })
     return {
       ...state,
       addTechnician: (name) => dispatch({ type: 'ADD_TECH', name }),
       toggleTechnician: (id) => dispatch({ type: 'TOGGLE_TECH', id }),
+      deleteTechnician: (id) => dispatch({ type: 'DELETE_TECH', id }),
       setShift: (techId, date, status) => dispatch({ type: 'SET_SHIFT', techId, date, status }),
       addTicket: (number, ticketType, techId) => dispatch({ type: 'ADD_TICKET', number, ticketType, techId }),
       resetDemo: () => dispatch({ type: 'RESET_DEMO' }),
+      clearAll: () => dispatch({ type: 'CLEAR_ALL' }),
       workingToday,
       shiftOf,
     }

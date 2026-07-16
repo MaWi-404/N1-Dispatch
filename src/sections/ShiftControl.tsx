@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { CalendarClock } from 'lucide-react'
 import { useStore } from '@/lib/store'
-import { SHIFT_LABELS, dateKeyOf, todayKey } from '@/types'
+import { SHIFT_CATALOG, SHIFT_ORDER, dateKeyOf, todayKey } from '@/types'
 import type { ShiftStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -14,14 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 
-const SHIFT_OPTIONS: ShiftStatus[] = ['morning', 'afternoon', 'off', 'unassigned']
-
-const SHIFT_BADGE_STYLES: Record<ShiftStatus, string> = {
-  morning: 'border-sky-200 bg-sky-50 text-sky-700',
-  afternoon: 'border-violet-200 bg-violet-50 text-violet-700',
-  off: 'border-gray-200 bg-gray-50 text-gray-500',
-  unassigned: 'border-amber-200 bg-amber-50 text-amber-700',
-}
+const SHIFT_OPTIONS: ShiftStatus[] = SHIFT_ORDER
 
 export function ShiftControl() {
   const { technicians, shiftOf, setShift, tickets } = useStore()
@@ -29,10 +22,12 @@ export function ShiftControl() {
   const activeTechs = technicians.filter((t) => t.active)
 
   const summary = useMemo(() => {
-    const counts: Record<ShiftStatus, number> = { morning: 0, afternoon: 0, off: 0, unassigned: 0 }
+    const counts = Object.fromEntries(SHIFT_ORDER.map((s) => [s, 0])) as Record<ShiftStatus, number>
     for (const t of activeTechs) counts[shiftOf(t.id)] += 1
     return counts
   }, [activeTechs, shiftOf])
+
+  const usedShifts = SHIFT_ORDER.filter((s) => summary[s] > 0)
 
   const todayTicketCounts = useMemo(() => {
     const map = new Map<string, number>()
@@ -61,15 +56,22 @@ export function ShiftControl() {
             <CardDescription className="mt-0.5 text-xs capitalize">{todayLabel}</CardDescription>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {SHIFT_OPTIONS.map((s) => (
-              <Badge
-                key={s}
-                variant="outline"
-                className={cn('border text-[11px] font-medium', SHIFT_BADGE_STYLES[s])}
-              >
-                {SHIFT_LABELS[s]}: {summary[s]}
+            {usedShifts.length === 0 ? (
+              <Badge variant="outline" className="border-gray-200 bg-white text-[11px] font-medium text-gray-400">
+                Sin turnos asignados hoy
               </Badge>
-            ))}
+            ) : (
+              usedShifts.map((s) => (
+                <Badge
+                  key={s}
+                  variant="outline"
+                  className={cn('border text-[11px] font-medium', SHIFT_CATALOG[s].badgeClass)}
+                  title={SHIFT_CATALOG[s].name}
+                >
+                  {SHIFT_CATALOG[s].label}: {summary[s]}
+                </Badge>
+              ))
+            )}
           </div>
         </div>
       </CardHeader>
@@ -106,23 +108,34 @@ export function ShiftControl() {
                   <div className="flex items-center gap-2">
                     <Badge
                       variant="outline"
-                      className={cn('border text-[11px] font-medium', SHIFT_BADGE_STYLES[status])}
+                      className={cn('border text-[11px] font-medium', SHIFT_CATALOG[status].badgeClass)}
                     >
-                      {SHIFT_LABELS[status]}
+                      {SHIFT_CATALOG[status].label !== '—' ? `${SHIFT_CATALOG[status].label} · ` : ''}
+                      {SHIFT_CATALOG[status].name}
                     </Badge>
                     <Select
                       value={status}
                       onValueChange={(v) => setShift(t.id, today, v as ShiftStatus)}
                     >
-                      <SelectTrigger className="h-8 w-[160px] border-gray-200 text-xs">
+                      <SelectTrigger className="h-8 w-[210px] border-gray-200 text-xs">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {SHIFT_OPTIONS.map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {SHIFT_LABELS[s]}
-                          </SelectItem>
-                        ))}
+                        {SHIFT_OPTIONS.map((s) => {
+                          const def = SHIFT_CATALOG[s]
+                          return (
+                            <SelectItem key={s} value={s}>
+                              <span className="flex items-center gap-2">
+                                <span className={cn('h-2 w-2 shrink-0 rounded-full', def.dotClass)} />
+                                <span>
+                                  {def.label !== '—' ? `${def.label} · ` : ''}
+                                  {def.name}
+                                  {def.time && <span className="text-gray-400"> · {def.time}</span>}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          )
+                        })}
                       </SelectContent>
                     </Select>
                   </div>

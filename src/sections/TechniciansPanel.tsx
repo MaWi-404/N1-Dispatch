@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useStore } from '@/lib/store'
 import { cn } from '@/lib/utils'
@@ -16,9 +16,20 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog'
 
 export function TechniciansPanel() {
-  const { technicians, tickets, addTechnician, toggleTechnician } = useStore()
+  const { technicians, tickets, addTechnician, toggleTechnician, deleteTechnician, clearAll } = useStore()
   const [name, setName] = useState('')
 
   const ticketCounts = useMemo(() => {
@@ -77,9 +88,48 @@ export function TechniciansPanel() {
                 Desactivar conserva el historial de tickets del técnico
               </CardDescription>
             </div>
-            <Badge variant="outline" className="border-gray-200 text-xs font-medium text-gray-500">
-              {activeCount} activo{activeCount === 1 ? '' : 's'} / {technicians.length} total
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-gray-200 text-xs font-medium text-gray-500">
+                {activeCount} activo{activeCount === 1 ? '' : 's'} / {technicians.length} total
+              </Badge>
+              {technicians.length > 0 && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1.5 border-gray-200 text-xs font-medium text-gray-500 hover:border-red-200 hover:text-red-600"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={1.75} />
+                      Vaciar lista
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>¿Eliminar todos los técnicos?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esto borra por completo la lista de técnicos, sus turnos y el historial de tickets
+                        (útil para quitar los datos de demostración y empezar desde cero). No se puede
+                        deshacer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+                        onClick={() => {
+                          clearAll()
+                          toast.success('Datos de demostración eliminados. Puedes empezar desde cero.')
+                        }}
+                      >
+                        Vaciar todo
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
@@ -89,7 +139,8 @@ export function TechniciansPanel() {
                 <TableHead className="pl-6 text-xs">Técnico</TableHead>
                 <TableHead className="text-xs">Estado</TableHead>
                 <TableHead className="text-right text-xs">Tickets históricos</TableHead>
-                <TableHead className="pr-6 text-right text-xs">Activo / Inactivo</TableHead>
+                <TableHead className="text-right text-xs">Activo / Inactivo</TableHead>
+                <TableHead className="pr-6 text-right text-xs">Eliminar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -133,7 +184,7 @@ export function TechniciansPanel() {
                   <TableCell className="text-right text-sm tabular-nums text-gray-600">
                     {ticketCounts.get(t.id) ?? 0}
                   </TableCell>
-                  <TableCell className="pr-6 text-right">
+                  <TableCell className="text-right">
                     <Switch
                       checked={t.active}
                       onCheckedChange={() => {
@@ -146,6 +197,42 @@ export function TechniciansPanel() {
                       }}
                       aria-label={`Cambiar estado de ${t.name}`}
                     />
+                  </TableCell>
+                  <TableCell className="pr-6 text-right">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <button
+                          type="button"
+                          className="rounded-md border border-transparent p-1.5 text-gray-400 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                          aria-label={`Eliminar a ${t.name}`}
+                        >
+                          <Trash2 className="h-4 w-4" strokeWidth={1.75} />
+                        </button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>¿Eliminar a «{t.name}»?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Esto quita al técnico de la lista y de los turnos asignados. Su historial de{' '}
+                            {ticketCounts.get(t.id) ?? 0} ticket{(ticketCounts.get(t.id) ?? 0) === 1 ? '' : 's'}{' '}
+                            se conserva en los reportes, pero esta acción no se puede deshacer para el registro
+                            del técnico.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="bg-red-600 text-white hover:bg-red-700 focus:ring-red-600"
+                            onClick={() => {
+                              deleteTechnician(t.id)
+                              toast.success(`«${t.name}» eliminado.`)
+                            }}
+                          >
+                            Eliminar definitivamente
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </TableCell>
                 </TableRow>
               ))}

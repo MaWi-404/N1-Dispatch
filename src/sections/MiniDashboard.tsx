@@ -11,20 +11,25 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useStore } from '@/lib/store'
-import { SHIFT_LABELS, currentShiftOfDay, dateKeyOf, todayKey } from '@/types'
+import { SHIFT_CATALOG, SHIFT_LABELS, dateKeyOf, todayKey } from '@/types'
 import type { ShiftStatus } from '@/types'
 
 const chartConfig = {
   tickets: { label: 'Tickets asignados', color: '#1F2937' },
 } satisfies ChartConfig
 
-type ShiftFilter = 'all' | 'morning' | 'afternoon'
+type ShiftFilter = 'all' | ShiftStatus
 
 export function MiniDashboard() {
   const { workingToday, shiftOf, tickets } = useStore()
   const [filter, setFilter] = useState<ShiftFilter>('all')
   const today = todayKey()
-  const currentShift = currentShiftOfDay()
+
+  const shiftsPresent = useMemo(() => {
+    const set = new Set<ShiftStatus>()
+    for (const t of workingToday) set.add(shiftOf(t.id))
+    return Array.from(set).sort()
+  }, [workingToday, shiftOf])
 
   const data = useMemo(() => {
     const counts = new Map<string, number>()
@@ -60,16 +65,22 @@ export function MiniDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="border-gray-200 text-xs font-medium text-gray-500">
-              Turno detectado: {currentShift === 'morning' ? 'Mañana' : 'Tarde'}
+              {workingToday.length} en turno hoy
             </Badge>
             <Select value={filter} onValueChange={(v) => setFilter(v as ShiftFilter)}>
-              <SelectTrigger className="h-8 w-[130px] border-gray-200 text-xs">
+              <SelectTrigger className="h-8 w-[160px] border-gray-200 text-xs">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los turnos</SelectItem>
-                <SelectItem value="morning">Turno Mañana</SelectItem>
-                <SelectItem value="afternoon">Turno Tarde</SelectItem>
+                {shiftsPresent.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    <span className="flex items-center gap-2">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${SHIFT_CATALOG[s].dotClass}`} />
+                      {SHIFT_CATALOG[s].label} · {SHIFT_CATALOG[s].name}
+                    </span>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
