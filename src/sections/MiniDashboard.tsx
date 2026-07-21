@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import * as XLSX from 'xlsx'
 import { Download } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
@@ -57,20 +57,32 @@ export function MiniDashboard() {
   const totalToday = data.reduce((acc, d) => acc + d.tickets, 0)
 
   const handleExportExcel = () => {
-    // Barra visual hecha con caracteres de bloque, escalada al máximo del turno.
-    // No requiere un gráfico nativo de Excel (frágil de generar desde el navegador)
-    // y funciona igual en Excel, Google Sheets o LibreOffice.
-    const scale = maxLoad > 0 ? 20 / maxLoad : 0
+    // Exportación mejorada con más detalles y formato
     const rows = data.map((d) => ({
-      Técnico: d.fullName,
-      Turno: SHIFT_LABELS[d.shift],
+      'Técnico': d.fullName,
+      'Turno': SHIFT_LABELS[d.shift],
       'Tickets asignados hoy': d.tickets,
-      Carga: '▇'.repeat(Math.round(d.tickets * scale)) || '–',
-      'Mayor carga del turno': d.tickets === maxLoad && maxLoad > 0 ? 'Sí' : '',
+      'Carga visual': d.tickets > 0 ? '█'.repeat(Math.min(d.tickets, 10)) : '',
+      'Mayor carga': d.tickets === maxLoad && maxLoad > 0 ? '⚠️ Sí' : '',
     }))
 
+    // Agregar una fila de total al final
+    rows.push({
+      'Técnico': 'TOTAL',
+      'Turno': '',
+      'Tickets asignados hoy': totalToday,
+      'Carga visual': '',
+      'Mayor carga': '',
+    })
+
     const sheet = XLSX.utils.json_to_sheet(rows)
-    sheet['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 20 }]
+    sheet['!cols'] = [
+      { wch: 30 }, // Técnico
+      { wch: 18 }, // Turno
+      { wch: 22 }, // Tickets asignados hoy
+      { wch: 20 }, // Carga visual
+      { wch: 15 }, // Mayor carga
+    ]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, sheet, 'Carga del turno')
@@ -78,6 +90,9 @@ export function MiniDashboard() {
     const fileDate = new Date().toISOString().slice(0, 10)
     XLSX.writeFile(workbook, `carga-turno-${fileDate}.xlsx`)
   }
+
+  // Determinar si necesitamos scroll horizontal
+  const needsHorizontalScroll = data.length > 6
 
   return (
     <Card className="border-gray-200 shadow-sm">
@@ -130,13 +145,19 @@ export function MiniDashboard() {
           </div>
         ) : (
           <>
-            {/* Min ~72px per technician keeps bars/labels legible; below that count the
-                chart simply fills 100% of the card width like before. Beyond it, the
-                chart scrolls horizontally instead of squeezing every bar together. */}
-            <div className="-mx-1 overflow-x-auto px-1">
-              <div style={{ minWidth: data.length > 7 ? `${Math.max(110, data.length * 110)}px` : '100%' }}>
-                <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                  <BarChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
+            {/* Contenedor con scroll horizontal solo cuando es necesario */}
+            <div className={needsHorizontalScroll ? 'overflow-x-auto' : ''}>
+              <div 
+                className={needsHorizontalScroll ? 'min-w-[700px]' : 'w-full'}
+                style={{ height: '300px' }}
+              >
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart 
+                    data={data} 
+                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
+                    barCategoryGap="20%"
+                    barGap={4}
+                  >
                     <CartesianGrid vertical={false} stroke="#EEF0F2" />
                     <XAxis
                       dataKey="name"
@@ -144,12 +165,14 @@ export function MiniDashboard() {
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#6B7280' }}
                       interval={0}
+                      height={40}
                     />
                     <YAxis
                       allowDecimals={false}
                       tickLine={false}
                       axisLine={false}
                       tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                      width={30}
                     />
                     <ChartTooltip
                       cursor={{ fill: 'rgba(17,24,39,0.04)' }}
@@ -166,22 +189,37 @@ export function MiniDashboard() {
                         />
                       }
                     />
-                    <Bar dataKey="tickets" radius={[8, 8, 0, 0]} maxBarSize={46} animationDuration={700}>
+                    <Bar 
+                      dataKey="tickets" 
+                      radius={[8, 8, 0, 0]} 
+                      maxBarSize={50}
+                      animationDuration={700}
+                    >
                       {data.map((d) => (
                         <Cell
                           key={d.id}
-                          fill={d.tickets === maxLoad && maxLoad > 0 ? '#F59E0B' : d.tickets >= maxLoad * 0.7 ? '#374151' : '#9CA3AF'}
+                          fill={
+                            d.tickets === maxLoad && maxLoad > 0 
+                              ? '#F59E0B' 
+                              : d.tickets >= maxLoad * 0.7 && maxLoad > 0 
+                                ? '#374151' 
+                                : '#9CA3AF'
+                          }
                         />
                       ))}
-                      <LabelList dataKey="tickets" position="top" style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                      <LabelList 
+                        dataKey="tickets" 
+                        position="top" 
+                        style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} 
+                      />
                     </Bar>
                   </BarChart>
-                </ChartContainer>
+                </ResponsiveContainer>
               </div>
             </div>
-            {data.length > 7 && (
+            {needsHorizontalScroll && (
               <p className="mt-1.5 text-right text-[11px] text-gray-400">
-                Desliza para ver todos los técnicos →
+                ↕ Desliza para ver todos los técnicos
               </p>
             )}
 
