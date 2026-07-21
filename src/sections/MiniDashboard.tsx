@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis } from 'recharts'
+import * as XLSX from 'xlsx'
+import { Download } from 'lucide-react'
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -53,6 +56,29 @@ export function MiniDashboard() {
   const maxLoad = Math.max(0, ...data.map((d) => d.tickets))
   const totalToday = data.reduce((acc, d) => acc + d.tickets, 0)
 
+  const handleExportExcel = () => {
+    // Barra visual hecha con caracteres de bloque, escalada al máximo del turno.
+    // No requiere un gráfico nativo de Excel (frágil de generar desde el navegador)
+    // y funciona igual en Excel, Google Sheets o LibreOffice.
+    const scale = maxLoad > 0 ? 20 / maxLoad : 0
+    const rows = data.map((d) => ({
+      Técnico: d.fullName,
+      Turno: SHIFT_LABELS[d.shift],
+      'Tickets asignados hoy': d.tickets,
+      Carga: '▇'.repeat(Math.round(d.tickets * scale)) || '–',
+      'Mayor carga del turno': d.tickets === maxLoad && maxLoad > 0 ? 'Sí' : '',
+    }))
+
+    const sheet = XLSX.utils.json_to_sheet(rows)
+    sheet['!cols'] = [{ wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 24 }, { wch: 20 }]
+
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Carga del turno')
+
+    const fileDate = new Date().toISOString().slice(0, 10)
+    XLSX.writeFile(workbook, `carga-turno-${fileDate}.xlsx`)
+  }
+
   return (
     <Card className="border-gray-200 shadow-sm">
       <CardHeader className="border-b border-gray-100 pb-4">
@@ -83,6 +109,17 @@ export function MiniDashboard() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 border-gray-200 text-xs font-medium text-gray-600"
+              onClick={handleExportExcel}
+              disabled={data.length === 0}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Exportar a Excel
+            </Button>
           </div>
         </div>
       </CardHeader>
