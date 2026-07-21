@@ -93,48 +93,60 @@ export function MiniDashboard() {
           </div>
         ) : (
           <>
-            <ChartContainer config={chartConfig} className="h-[220px] w-full">
-              <BarChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
-                <CartesianGrid vertical={false} stroke="#EEF0F2" />
-                <XAxis
-                  dataKey="name"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11, fill: '#6B7280' }}
-                  interval={0}
-                />
-                <YAxis
-                  allowDecimals={false}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                />
-                <ChartTooltip
-                  cursor={{ fill: 'rgba(17,24,39,0.04)' }}
-                  content={
-                    <ChartTooltipContent
-                      formatter={(value, _name, item) => (
-                        <div className="flex flex-col gap-0.5">
-                          <span className="font-medium">{item.payload.fullName}</span>
-                          <span>
-                            {value} ticket{Number(value) === 1 ? '' : 's'} · {SHIFT_LABELS[item.payload.shift as ShiftStatus]}
-                          </span>
-                        </div>
-                      )}
+            {/* Min ~72px per technician keeps bars/labels legible; below that count the
+                chart simply fills 100% of the card width like before. Beyond it, the
+                chart scrolls horizontally instead of squeezing every bar together. */}
+            <div className="-mx-1 overflow-x-auto px-1">
+              <div style={{ minWidth: data.length > 7 ? `${data.length * 72}px` : '100%' }}>
+                <ChartContainer config={chartConfig} className="h-[220px] w-full">
+                  <BarChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
+                    <CartesianGrid vertical={false} stroke="#EEF0F2" />
+                    <XAxis
+                      dataKey="name"
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11, fill: '#6B7280' }}
+                      interval={0}
                     />
-                  }
-                />
-                <Bar dataKey="tickets" radius={[4, 4, 0, 0]} maxBarSize={52}>
-                  {data.map((d) => (
-                    <Cell
-                      key={d.id}
-                      fill={d.tickets === maxLoad && maxLoad > 0 ? '#D97706' : '#1F2937'}
+                    <YAxis
+                      allowDecimals={false}
+                      tickLine={false}
+                      axisLine={false}
+                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
                     />
-                  ))}
-                  <LabelList dataKey="tickets" position="top" style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
-                </Bar>
-              </BarChart>
-            </ChartContainer>
+                    <ChartTooltip
+                      cursor={{ fill: 'rgba(17,24,39,0.04)' }}
+                      content={
+                        <ChartTooltipContent
+                          formatter={(value, _name, item) => (
+                            <div className="flex flex-col gap-0.5">
+                              <span className="font-medium">{item.payload.fullName}</span>
+                              <span>
+                                {value} ticket{Number(value) === 1 ? '' : 's'} · {SHIFT_LABELS[item.payload.shift as ShiftStatus]}
+                              </span>
+                            </div>
+                          )}
+                        />
+                      }
+                    />
+                    <Bar dataKey="tickets" radius={[4, 4, 0, 0]} maxBarSize={52}>
+                      {data.map((d) => (
+                        <Cell
+                          key={d.id}
+                          fill={d.tickets === maxLoad && maxLoad > 0 ? '#D97706' : '#1F2937'}
+                        />
+                      ))}
+                      <LabelList dataKey="tickets" position="top" style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
+                    </Bar>
+                  </BarChart>
+                </ChartContainer>
+              </div>
+            </div>
+            {data.length > 7 && (
+              <p className="mt-1.5 text-right text-[11px] text-gray-400">
+                Desliza para ver todos los técnicos →
+              </p>
+            )}
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500">
               <span>
