@@ -134,8 +134,8 @@ export function MiniDashboard() {
                 chart simply fills 100% of the card width like before. Beyond it, the
                 chart scrolls horizontally instead of squeezing every bar together. */}
             <div className="-mx-1 overflow-x-auto px-1">
-              <div style={{ minWidth: data.length > 7 ? `${data.length * 72}px` : '100%' }}>
-                <ChartContainer config={chartConfig} className="h-[220px] w-full">
+              <div style={{ minWidth: data.length > 7 ? `${Math.max(110, data.length * 110)}px` : '100%' }}>
+                <ChartContainer config={chartConfig} className="h-[300px] w-full">
                   <BarChart data={data} margin={{ top: 18, right: 8, left: -18, bottom: 0 }} barCategoryGap="28%">
                     <CartesianGrid vertical={false} stroke="#EEF0F2" />
                     <XAxis
@@ -166,11 +166,11 @@ export function MiniDashboard() {
                         />
                       }
                     />
-                    <Bar dataKey="tickets" radius={[4, 4, 0, 0]} maxBarSize={52}>
+                    <Bar dataKey="tickets" radius={[8, 8, 0, 0]} maxBarSize={46} animationDuration={700}>
                       {data.map((d) => (
                         <Cell
                           key={d.id}
-                          fill={d.tickets === maxLoad && maxLoad > 0 ? '#D97706' : '#1F2937'}
+                          fill={d.tickets === maxLoad && maxLoad > 0 ? '#F59E0B' : d.tickets >= maxLoad * 0.7 ? '#374151' : '#9CA3AF'}
                         />
                       ))}
                       <LabelList dataKey="tickets" position="top" style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} />
