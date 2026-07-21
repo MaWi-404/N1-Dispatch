@@ -113,18 +113,21 @@ export function MiniDashboard() {
                 ))}
               </SelectContent>
             </Select>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5 border-gray-200 text-xs font-medium text-gray-600"
-              onClick={handleExportExcel}
-              disabled={data.length === 0}
-            >
-              <Download className="h-3.5 w-3.5" />
-              Exportar a Excel
-            </Button>
           </div>
+        </div>
+        {/* BOTÓN DE EXCEL - AHORA EN SU PROPIA FILA PARA QUE SIEMPRE SE VEA */}
+        <div className="mt-3 flex justify-end">
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="gap-1.5 bg-green-600 text-white hover:bg-green-700"
+            onClick={handleExportExcel}
+            disabled={data.length === 0}
+          >
+            <Download className="h-4 w-4" />
+            Exportar a Excel
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="pt-5">
@@ -134,7 +137,6 @@ export function MiniDashboard() {
           </div>
         ) : (
           <>
-            {/* Contenedor del gráfico - AHORA CON ALTURA Y ANCHO EXPLÍCITOS */}
             <div className="w-full" style={{ height: '300px' }}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
