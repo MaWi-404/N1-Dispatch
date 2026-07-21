@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, Cell, LabelList, XAxis, YAxis, ResponsiveContainer } from 'recharts'
 import * as XLSX from 'xlsx'
 import { Download } from 'lucide-react'
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -16,10 +15,6 @@ import {
 import { useStore } from '@/lib/store'
 import { SHIFT_CATALOG, SHIFT_LABELS, dateKeyOf, todayKey } from '@/types'
 import type { ShiftStatus } from '@/types'
-
-const chartConfig = {
-  tickets: { label: 'Tickets asignados', color: '#1F2937' },
-} satisfies ChartConfig
 
 type ShiftFilter = 'all' | ShiftStatus
 
@@ -57,7 +52,6 @@ export function MiniDashboard() {
   const totalToday = data.reduce((acc, d) => acc + d.tickets, 0)
 
   const handleExportExcel = () => {
-    // Exportación mejorada con más detalles y formato
     const rows = data.map((d) => ({
       'Técnico': d.fullName,
       'Turno': SHIFT_LABELS[d.shift],
@@ -66,7 +60,6 @@ export function MiniDashboard() {
       'Mayor carga': d.tickets === maxLoad && maxLoad > 0 ? '⚠️ Sí' : '',
     }))
 
-    // Agregar una fila de total al final
     rows.push({
       'Técnico': 'TOTAL',
       'Turno': '',
@@ -77,22 +70,18 @@ export function MiniDashboard() {
 
     const sheet = XLSX.utils.json_to_sheet(rows)
     sheet['!cols'] = [
-      { wch: 30 }, // Técnico
-      { wch: 18 }, // Turno
-      { wch: 22 }, // Tickets asignados hoy
-      { wch: 20 }, // Carga visual
-      { wch: 15 }, // Mayor carga
+      { wch: 30 },
+      { wch: 18 },
+      { wch: 22 },
+      { wch: 20 },
+      { wch: 15 },
     ]
 
     const workbook = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(workbook, sheet, 'Carga del turno')
-
     const fileDate = new Date().toISOString().slice(0, 10)
     XLSX.writeFile(workbook, `carga-turno-${fileDate}.xlsx`)
   }
-
-  // Determinar si necesitamos scroll horizontal
-  const needsHorizontalScroll = data.length > 6
 
   return (
     <Card className="border-gray-200 shadow-sm">
@@ -145,83 +134,58 @@ export function MiniDashboard() {
           </div>
         ) : (
           <>
-            {/* Contenedor con scroll horizontal solo cuando es necesario */}
-            <div className={needsHorizontalScroll ? 'overflow-x-auto' : ''}>
-              <div 
-                className={needsHorizontalScroll ? 'min-w-[700px]' : 'w-full'}
-                style={{ height: '300px' }}
-              >
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart 
-                    data={data} 
-                    margin={{ top: 20, right: 30, left: 0, bottom: 5 }}
-                    barCategoryGap="20%"
-                    barGap={4}
+            {/* Contenedor del gráfico - AHORA CON ALTURA Y ANCHO EXPLÍCITOS */}
+            <div className="w-full" style={{ height: '300px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={data}
+                  margin={{ top: 20, right: 30, left: 0, bottom: 20 }}
+                  barCategoryGap="20%"
+                  barGap={4}
+                >
+                  <CartesianGrid vertical={false} stroke="#EEF0F2" />
+                  <XAxis
+                    dataKey="name"
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: '#6B7280' }}
+                    interval={0}
+                    height={40}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 11, fill: '#9CA3AF' }}
+                    width={30}
+                  />
+                  <Bar
+                    dataKey="tickets"
+                    radius={[8, 8, 0, 0]}
+                    maxBarSize={50}
+                    animationDuration={700}
                   >
-                    <CartesianGrid vertical={false} stroke="#EEF0F2" />
-                    <XAxis
-                      dataKey="name"
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 11, fill: '#6B7280' }}
-                      interval={0}
-                      height={40}
-                    />
-                    <YAxis
-                      allowDecimals={false}
-                      tickLine={false}
-                      axisLine={false}
-                      tick={{ fontSize: 11, fill: '#9CA3AF' }}
-                      width={30}
-                    />
-                    <ChartTooltip
-                      cursor={{ fill: 'rgba(17,24,39,0.04)' }}
-                      content={
-                        <ChartTooltipContent
-                          formatter={(value, _name, item) => (
-                            <div className="flex flex-col gap-0.5">
-                              <span className="font-medium">{item.payload.fullName}</span>
-                              <span>
-                                {value} ticket{Number(value) === 1 ? '' : 's'} · {SHIFT_LABELS[item.payload.shift as ShiftStatus]}
-                              </span>
-                            </div>
-                          )}
-                        />
-                      }
-                    />
-                    <Bar 
-                      dataKey="tickets" 
-                      radius={[8, 8, 0, 0]} 
-                      maxBarSize={50}
-                      animationDuration={700}
-                    >
-                      {data.map((d) => (
-                        <Cell
-                          key={d.id}
-                          fill={
-                            d.tickets === maxLoad && maxLoad > 0 
-                              ? '#F59E0B' 
-                              : d.tickets >= maxLoad * 0.7 && maxLoad > 0 
-                                ? '#374151' 
-                                : '#9CA3AF'
-                          }
-                        />
-                      ))}
-                      <LabelList 
-                        dataKey="tickets" 
-                        position="top" 
-                        style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }} 
+                    {data.map((d) => (
+                      <Cell
+                        key={d.id}
+                        fill={
+                          d.tickets === maxLoad && maxLoad > 0
+                            ? '#F59E0B'
+                            : d.tickets >= maxLoad * 0.7 && maxLoad > 0
+                              ? '#374151'
+                              : '#9CA3AF'
+                        }
                       />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+                    ))}
+                    <LabelList
+                      dataKey="tickets"
+                      position="top"
+                      style={{ fontSize: 11, fill: '#374151', fontWeight: 600 }}
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-            {needsHorizontalScroll && (
-              <p className="mt-1.5 text-right text-[11px] text-gray-400">
-                ↕ Desliza para ver todos los técnicos
-              </p>
-            )}
 
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-gray-100 pt-3 text-xs text-gray-500">
               <span>
